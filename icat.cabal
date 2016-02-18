@@ -1,0 +1,45 @@
+name:                icat
+version:             0.1.0.0
+synopsis:            Display images in the console!
+description:         Please see README.md
+homepage:            http://github.com/noprompt/icat
+license:             BSD3
+license-file:        LICENSE
+author:              Joel Holdbrooks
+maintainer:          example@example.com
+copyright:           2016 Joel Holdbrooks
+category:            Command Line
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     ICat
+  build-depends:       base >= 4.7 && < 5
+                     , JuicyPixels == 3.2.7
+                     , directory == 1.2.2.0
+                     , vector == 0.11.0.0
+                     , terminal-size == 0.3.2.1
+  default-language:    Haskell2010
+
+executable icat-exe
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , icat
+  default-language:    Haskell2010
+
+test-suite icat-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , icat
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/noprompt/icat
