@@ -22,6 +22,7 @@ library
                      , vector == 0.11.0.0
                      , terminal-size == 0.3.2.1
   default-language:    Haskell2010
+  other-modules:       ColorTable
 
 executable icat-exe
   hs-source-dirs:      app
