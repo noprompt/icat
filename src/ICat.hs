@@ -1,73 +1,59 @@
 module ICat where
 
-
+import qualified Codec.Picture                as Picture
 import           ColorTable
-import qualified Control.Monad
-import qualified Codec.Picture as Picture
-import qualified Data.List as List
-import qualified Data.Maybe as Maybe
-import qualified Data.Vector.Storable as SVector
+import           Control.Monad                (forM_)
+import qualified Data.List                    as List
+import qualified Data.Maybe                   as Maybe
+-- import qualified Data.Vector.Storable         as SVector
 import qualified Numeric
 import qualified System.Console.Terminal.Size as Terminal
-import qualified System.Directory as Directory
-import qualified System.Environment as Environment
-import qualified System.IO as IO
+-- import qualified System.Directory             as Directory
+import qualified System.Environment           as Environment
 
+intToHex :: (Integral a, Show a) => a -> String
+intToHex i
+  | i <= 16   = '0': h
+  | otherwise = h
+  where h = Numeric.showHex i ""
 
-intToHex :: (Integral a, Show a) => a -> [Char]
-intToHex i =
-  let
-    h = (Numeric.showHex i "")
-  in
-    if i <= 16 then
-     '0' : h
-    else
-      h
-
-
+-- you write code like you have to do work upfront
+-- before creating a reference to a computation.
+-- no need for that.
 approximateXtermColor :: (Num a, Ord a) => a -> a
 approximateXtermColor i =
-  let
-    steps = [0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff]
-    approx' i [] = 0
-    approx' i ((low , high) : steps) =
-      if low <= i && i <= high then
-        let
-          dl = abs (i - low)
-          dh = abs (high - i)
-        in
-          if dl < dh then
-            low
-          else
-            high
-      else
-        approx' i steps
-        
-  in
-    approx' i (zip steps $ tail steps)
+  approx' i (zip steps $ tail steps)
+  where steps = [0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff]
+        approx' _ [] = 0
+        approx' j ((low , high) : steps')
+          | jInRange && dlLower = low
+          | jInRange && not dlLower = high
+          | otherwise = approx' j steps'
+          where dl = abs (j - low)
+                dh = abs (high - j)
+                jInRange = low <= j && j <= high
+                dlLower = dl < dh
 
-
-hex256at :: Picture.Image Picture.PixelRGB8 -> Int -> Int -> [Char]
+hex256at :: Picture.Image Picture.PixelRGB8 -> Int -> Int -> String
 hex256at p x y =
-  let
-    (Picture.PixelRGB8 r g b) = Picture.pixelAt p x y
-    hex = List.intercalate "" $ map (intToHex . approximateXtermColor) [r, g, b]
-  in
-    hex
+  hex
+  where (Picture.PixelRGB8 r g b) = Picture.pixelAt p x y
+        hex = List.intercalate "" $ map (intToHex . approximateXtermColor) [r, g, b]
 
-
-findCodeByHex :: [Char] -> Maybe [Char]
+-- use hlint, it'll tell you how to clean up stuff like I did here.
+findCodeByHex :: String -> Maybe String
 findCodeByHex hex =
-  fmap fst $ List.find (\(c, h) -> h == hex) colorTable
+  fst <$> List.find (\(_, h) -> h == hex) colorTable
 
 
-escapeCodeAt :: Picture.Image Picture.PixelRGB8 -> Int -> Int -> [Char]
+escapeCodeAt :: Picture.Image Picture.PixelRGB8 -> Int -> Int -> String
 escapeCodeAt p x y = escapeCode
   where
     code = Maybe.fromMaybe "0" $ findCodeByHex $ hex256at p x y
     escapeCode = "\ESC[48;5;" ++ code ++ "m"
 
-    
+
+-- this is a bit tower-y and can be split apart and cleaned up
 handlePicture :: Either String Picture.DynamicImage -> IO ()
 handlePicture (Left errorMessage) = putStrLn errorMessage
 handlePicture (Right picture) =
@@ -91,22 +77,25 @@ handlePicture (Right picture) =
             Nothing ->
               4
       -- Print out the picture.
-      Control.Monad.forM_ [0, step .. ph - 1] $
+      forM_ [0, step .. ph - 1]
         (\y ->
           do
-            Control.Monad.forM_ [0, step .. pw - 1 ] $
+            forM_ [0, step .. pw - 1 ]
               (\x ->
-                do 
-                  IO.hPutStr IO.stdout $ escapeCodeAt pictureRGB8 x y
-                  IO.hPutStr IO.stdout " ")
-            IO.hPutStrLn IO.stdout "\ESC[0m")
+                do
+                  -- everybody knows where these come from
+                  -- also hPutStr stdout == putStr
+                  putStr $ escapeCodeAt pictureRGB8 x y
+                  putStr " ")
+              -- hPutStrLn stdout = putStrLn
+            putStrLn "\ESC[0m")
 
 
 main :: IO ()
 main = do
   args <- Environment.getArgs
   case args of
-    (fileName : []) ->
+    [fileName] ->
       Picture.readImage fileName >>= handlePicture
     _ ->
       return ()
